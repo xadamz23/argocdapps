@@ -1,0 +1,376 @@
+# kind: StorageClass
+# apiVersion: storage.k8s.io/v1
+# allowVolumeExpansion: true
+# reclaimPolicy: Delete
+# metadata:
+#   name: ultra-ssd-8-2400-600
+# provisioner: disk.csi.azure.com          # replace with "kubernetes.io/azure-disk" if aks version is less than 1.21
+# volumeBindingMode: WaitForFirstConsumer  # optional, but recommended if you want to wait until the pod that will use this disk is created 
+# parameters:
+#   skuname: UltraSSD_LRS
+#   kind: managed
+#   cachingMode: None
+#   diskIopsReadWrite: "2400"  # minimum value: 2 IOPS/GiB 
+#   diskMbpsReadWrite: "600"   # minimum value: 0.032/GiB
+# ---
+# kind: StorageClass
+# apiVersion: storage.k8s.io/v1
+# allowVolumeExpansion: true
+# reclaimPolicy: Delete
+# metadata:
+#   name: ultra-ssd-16-4800-1200
+# provisioner: disk.csi.azure.com
+# volumeBindingMode: WaitForFirstConsumer
+# parameters:
+#   skuname: UltraSSD_LRS
+#   kind: managed
+#   cachingMode: None
+#   diskIopsReadWrite: "4800"
+#   diskMbpsReadWrite: "1200"
+
+
+# Disk Size (GiB)   IOPS Cap  Throughput Cap (MBps)
+# -----------------------------------------------------------------------------------------------------
+# 4                 1,200     300
+# 8                 2,400     600
+# 16                4,800     1,200
+# 32                9,600     2,400
+# 64                19,200    4,000
+# 128               38,400    4,000
+# 256               76,800    4,000
+# 512               153,600   4,000
+# 1,024-65,536      160,000   4,000   (sizes in this range increasing in increments of 1 TiB)
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: acme
+# ---
+# #
+# #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# #  THIS SECRET IS HERE FOR TESTING AND DEMO PURPOSES ONLY. DO NOT INCLUDE THIS IN GIT
+# #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# #
+# apiVersion: v1
+# data:
+#   AZURE_STORAGE_SAS_TOKEN: c3A9cmFjd2RsJnN0PTIwMjMtMDMtMDdUMTM6MjM6MDJaJnNlPTIwMjMtMDMtMjNUMjA6MjM6MDJaJnNwcj1odHRwcyZzdj0yMDIxLTA2LTA4JnNyPWMmc2lnPU82dVE5cG5jckROV0V6OW9QT1JDcjYlMkJtWGhtd0tPWDlwSkdzVDVybUdLZyUzRA==
+# kind: Secret
+# metadata:
+#   name: azure-storage-account-creds-for-backups
+#   namespace: acme
+# type: Opaque
+# ---
+# apiVersion: v1
+# data:
+#   AZURE_STORAGE_SAS_TOKEN: c3A9cmFjd2RsJnN0PTIwMjMtMDMtMDdUMTM6MjM6MDJaJnNlPTIwMjMtMDMtMjNUMjA6MjM6MDJaJnNwcj1odHRwcyZzdj0yMDIxLTA2LTA4JnNyPWMmc2lnPU82dVE5cG5jckROV0V6OW9QT1JDcjYlMkJtWGhtd0tPWDlwSkdzVDVybUdLZyUzRA==
+# kind: Secret
+# metadata:
+#   name: azure-storage-account-creds-for-backups
+#   namespace: default
+# type: Opaque
+# ---
+# apiVersion: postgresql.cnpg.io/v1
+# kind: Cluster
+# metadata:
+#   name: acme-pg-mqttauth-cluster
+#   namespace: acme
+# spec:
+#   #imageName: ghcr.io/cloudnative-pg/postgresql:15.0
+#   instances: 3
+
+#   # Example of rolling update strategy:
+#   # - unsupervised: automated update of the primary once all
+#   #                 replicas have been upgraded (default)
+#   # - supervised: requires manual supervision to perform
+#   #               the switchover of the primary
+#   primaryUpdateStrategy: unsupervised
+
+#   storage:
+#     storageClass: managed-premium
+#     size: 10Gi
+
+#   # Ensure pods are scheduled on the "highmem" node pool
+#   affinity:
+#     nodeSelector:
+#       agentpool: highmem
+
+#   # CloudNativePG recommends setting limits and requests for both memory and cpu to the same
+#   # value in order for the pods to get assigned to the "Guaranteed QoS class." However, we are
+#   # not going to be setting a cpu limit in order to prevent cpu throttling.
+#   resources:
+#     requests:
+#       memory: "1Gi"
+#       cpu: "200m"
+#     limits:
+#       memory: "1Gi"
+#       #cpu: "1"
+  
+#   # Create a database, owner of the database, and tables
+#   bootstrap:
+#     initdb:
+#       database: mqttauth
+#       owner: mqttauth
+#       postInitApplicationSQL:
+#         # mqtt_user
+#         - CREATE SEQUENCE mqtt_acl_id_seq INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1
+#         - ALTER SEQUENCE mqtt_acl_id_seq OWNER TO mqttauth
+#         - CREATE TABLE mqtt_user (id SERIAL PRIMARY KEY, username CHARACTER VARYING(100), password CHARACTER VARYING(100), salt CHARACTER VARYING(40), is_superuser BOOLEAN, UNIQUE (username))
+#         # mqtt_acl
+#         - CREATE TABLE mqtt_acl (id SERIAL PRIMARY KEY, allow INTEGER, ipaddr CHARACTER VARYING(60), username CHARACTER VARYING(100), clientid CHARACTER VARYING(100), access INTEGER, topic CHARACTER VARYING(100))
+#       # postInitSQL:
+#       #   - create table numbers (i integer)
+#       #   - insert into numbers (select generate_series(1,10000))
+#       # postInitTemplateSQL:
+#       #   - create extension intarray
+#       # postInitApplicationSQL:
+#       #   - create table application_numbers (i integer)
+#       #   - insert into application_numbers (select generate_series(1,10000))
+#       # postInitApplicationSQLRefs:
+#       #   configMapRefs:
+#       #   - name: post-init-sql-configmap
+#       #     key: configmap.sql
+#       #   secretRefs:
+#       #   - name: post-init-sql-secret
+#       #     key: secret.sql
+  
+#   # postgresql:
+#   #   parameters:
+#   #     # May want to adjust shared_buffers. shared_buffers: how much memory is dedicated to
+#   #     # the PostgreSQL server for caching data. The default is 128MB.
+#   #     #
+#   #     # Straight out of the cnpg documentation:
+#   #     #
+#   #     # A reasonable starting value for shared_buffers is 25% of the memory in your system.
+#   #     # For example: if your shared_buffers is 256 MB, then the recommended value for your container
+#   #     # memory size is 1 GB, which means that within a pod all the containers will have a total of 1 GB
+#   #     # memory that Kubernetes will always preserve, enabling our containers to work as expected. For
+#   #     # more details, please refer to the "Resource Consumption" section in the PostgreSQL documentation.
+#   #     shared_buffers: 256MB
+#   #     pg_stat_statements.max: '10000'
+#   #     pg_stat_statements.track: all
+#   #     auto_explain.log_min_duration: '10s'
+#   #   pg_hba:
+#   #     - host all all 10.244.0.0/16 md5
+
+#   backup:
+#     barmanObjectStore:
+#       destinationPath: "https://stcnpgbackups.blob.core.windows.net/acme"  # You can add a path after the container if you like (e.g. ../adam-pg-backups/path or ../adam-pg-backups/some/path)
+#       azureCredentials:
+#         storageSasToken:
+#           name: azure-storage-account-creds-for-backups
+#           key: AZURE_STORAGE_SAS_TOKEN
+#       wal:
+#         compression: gzip
+#         #encryption: AES256
+#       data:
+#         compression: gzip
+#         #encryption: AES256
+#         #immediateCheckpoint: false
+#         #jobs: 2
+#     retentionPolicy: "30d"
+# ---
+# # Schedule full backups
+# apiVersion: postgresql.cnpg.io/v1
+# kind: ScheduledBackup
+# metadata:
+#   name: acme-pg-mqttauth-cluster-backup
+#   namespace: acme
+# spec:
+#   # Note that kubernetes cron syntax includes a field for "seconds".
+#   # Seconds | Minutes | Hours | Day of month | Month | Day of week
+#   #
+#   # The schedule defined below would trigger a backup every Sunday at 12:30:05 PM. Notice the "Hours"
+#   # field is set to 18 and not 12 because of UTC.
+#   schedule: "5 30 18 * * 0"
+#   backupOwnerReference: self
+#   cluster:
+#     name: acme-pg-mqttauth-cluster
+
+#
+#
+#
+#
+#
+#
+
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: acme-pg-iot-cluster
+  namespace: acme
+spec:
+  #imageName: ghcr.io/cloudnative-pg/postgresql:15.0
+  instances: 3
+  
+  # Enable replication slots for HA in the cluster
+  replicationSlots:
+    highAvailability:
+      enabled: true
+
+  # Example of rolling update strategy:
+  # - unsupervised: automated update of the primary once all
+  #                 replicas have been upgraded (default)
+  # - supervised: requires manual supervision to perform
+  #               the switchover of the primary
+  primaryUpdateStrategy: unsupervised
+
+  storage:
+    storageClass: managed-premium
+    size: 50Gi
+
+  # Ensure pods are scheduled on the "highmem" node pool
+  affinity:
+    nodeSelector:
+      agentpool: highmem
+
+  # CloudNativePG recommends setting limits and requests for both memory and cpu to the same
+  # value in order for the pods to get assigned to the "Guaranteed QoS class." However, we are
+  # not going to be setting a cpu limit in order to prevent cpu throttling.
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "200m"
+    limits:
+      memory: "1Gi"
+      #cpu: "1"
+
+  postgresql:
+    parameters:
+      # May want to adjust shared_buffers. shared_buffers: how much memory is dedicated to
+      # the PostgreSQL server for caching data. The default is 128MB.
+      #
+      # Straight out of the cnpg documentation:
+      #
+      # A reasonable starting value for shared_buffers is 25% of the memory in your system.
+      # For example: if your shared_buffers is 256 MB, then the recommended value for your container
+      # memory size is 1 GB, which means that within a pod all the containers will have a total of 1 GB
+      # memory that Kubernetes will always preserve, enabling our containers to work as expected. For
+      # more details, please refer to the "Resource Consumption" section in the PostgreSQL documentation.
+      shared_buffers: 256MB
+      # pg_stat_statements.max: '10000'
+      # pg_stat_statements.track: all
+      # auto_explain.log_min_duration: '10s'
+
+  
+  # Create a database, owner of the database, and tables
+  bootstrap:
+    initdb:
+      database: iot
+      owner: esiiotdba
+      localeCollate: en_US.utf8
+      localeCType: en_US.utf8
+      postInitApplicationSQL:
+        # Create the normalsite sequence, table, and indexes
+        - CREATE SEQUENCE normalsite_id_seq INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1
+        - ALTER SEQUENCE normalsite_id_seq OWNER TO esiiotdba
+        - CREATE TABLE normalsite (id integer NOT NULL DEFAULT nextval('normalsite_id_seq'::regclass), name character varying COLLATE pg_catalog."default" NOT NULL, description character varying COLLATE pg_catalog."default", CONSTRAINT normalsite_pkey PRIMARY KEY (id))
+        - ALTER TABLE normalsite OWNER TO esiiotdba
+        - ALTER SEQUENCE normalsite_id_seq INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 OWNED BY normalsite.id
+        - CREATE INDEX ix_normalsite_description ON public.normalsite USING btree (description COLLATE pg_catalog."default" ASC NULLS LAST)
+        - CREATE INDEX ix_normalsite_id ON public.normalsite USING btree (id ASC NULLS LAST)
+        - CREATE INDEX ix_normalsite_name ON public.normalsite USING btree (name COLLATE pg_catalog."default" ASC NULLS LAST)
+        # Create the normalpoint sequence, table, and indexes
+        - CREATE SEQUENCE normalpoint_id_seq INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1
+        - ALTER SEQUENCE normalpoint_id_seq OWNER TO esiiotdba
+        - CREATE TABLE normalpoint (properties jsonb, id integer NOT NULL DEFAULT nextval('normalpoint_id_seq'::regclass), name character varying COLLATE pg_catalog."default" NOT NULL, alias character varying COLLATE pg_catalog."default" NOT NULL, device_id character varying COLLATE pg_catalog."default", device_uuid character varying COLLATE pg_catalog."default", scanned_at timestamp without time zone, uuid character varying COLLATE pg_catalog."default", site_id integer, updated_at timestamp without time zone NOT NULL, CONSTRAINT normalpoint_pkey PRIMARY KEY (id), CONSTRAINT normalpoint_site_id_fkey FOREIGN KEY (site_id) REFERENCES public.normalsite (id) MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION)
+        - ALTER TABLE normalpoint OWNER to esiiotdba
+        - ALTER SEQUENCE normalpoint_id_seq INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 OWNED BY normalpoint.id
+        - CREATE INDEX ix_normalpoint_alias ON public.normalpoint USING btree (alias COLLATE pg_catalog."default" ASC NULLS LAST)
+        - CREATE INDEX ix_normalpoint_device_id ON public.normalpoint USING btree (device_id COLLATE pg_catalog."default" ASC NULLS LAST)
+        - CREATE INDEX ix_normalpoint_device_uuid ON public.normalpoint USING btree (device_uuid COLLATE pg_catalog."default" ASC NULLS LAST)
+        - CREATE INDEX ix_normalpoint_id ON public.normalpoint USING btree (id ASC NULLS LAST)
+        - CREATE INDEX ix_normalpoint_name ON public.normalpoint USING btree (name COLLATE pg_catalog."default" ASC NULLS LAST)
+        - CREATE INDEX ix_normalpoint_scanned_at ON public.normalpoint USING btree (scanned_at ASC NULLS LAST)
+        - CREATE INDEX ix_normalpoint_site_id ON public.normalpoint USING btree (site_id ASC NULLS LAST)
+        - CREATE INDEX ix_normalpoint_updated_at ON public.normalpoint USING btree (updated_at ASC NULLS LAST)
+        - CREATE INDEX ix_normalpoint_uuid ON public.normalpoint USING btree (uuid COLLATE pg_catalog."default" ASC NULLS LAST)
+        # Create the normaldata sequence, table, and indexes
+        - CREATE SEQUENCE normaldata_id_seq INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1
+        - ALTER SEQUENCE normaldata_id_seq OWNER TO esiiotdba
+        - CREATE TABLE normaldata (id integer NOT NULL DEFAULT nextval('normaldata_id_seq'::regclass), point_id integer, site_id integer, name character varying COLLATE pg_catalog."default" NOT NULL, "doubleValue" double precision, "floatValue" double precision, "intValue" integer, "longValue" double precision, "booleanValue" boolean, "timestamp" timestamp without time zone NOT NULL, created_at timestamp without time zone NOT NULL, CONSTRAINT normaldata_pkey PRIMARY KEY (id), CONSTRAINT normaldata_point_id_fkey FOREIGN KEY (point_id) REFERENCES public.normalpoint (id) MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION, CONSTRAINT normaldata_site_id_fkey FOREIGN KEY (site_id) REFERENCES public.normalsite (id) MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION)
+        - ALTER TABLE normaldata OWNER to esiiotdba
+        - ALTER SEQUENCE normaldata_id_seq INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 OWNED BY normaldata.id
+        - CREATE INDEX idx_data_date ON public.normaldata USING btree (site_id ASC NULLS LAST, point_id ASC NULLS LAST, "timestamp" ASC NULLS LAST)
+        - CREATE INDEX ix_normaldata_booleanValue ON public.normaldata USING btree ("booleanValue" ASC NULLS LAST)
+        - CREATE INDEX ix_normaldata_created_at ON public.normaldata USING btree (created_at ASC NULLS LAST)
+        - CREATE INDEX ix_normaldata_doubleValue ON public.normaldata USING btree ("doubleValue" ASC NULLS LAST)
+        - CREATE INDEX ix_normaldata_floatValue ON public.normaldata USING btree ("floatValue" ASC NULLS LAST)
+        - CREATE INDEX ix_normaldata_id ON public.normaldata USING btree (id ASC NULLS LAST)
+        - CREATE INDEX ix_normaldata_intValue ON public.normaldata USING btree ("intValue" ASC NULLS LAST)
+        - CREATE INDEX ix_normaldata_longValue ON public.normaldata USING btree ("longValue" ASC NULLS LAST)
+        - CREATE INDEX ix_normaldata_name ON public.normaldata USING btree (name COLLATE pg_catalog."default" ASC NULLS LAST)
+        - CREATE INDEX ix_normaldata_point_id ON public.normaldata USING btree (point_id ASC NULLS LAST)
+        - CREATE INDEX ix_normaldata_site_id ON public.normaldata USING btree (site_id ASC NULLS LAST)
+        - CREATE INDEX ix_normaldata_timestamp ON public.normaldata USING btree ("timestamp" ASC NULLS LAST)
+      # postInitSQL:
+      #   - create table numbers (i integer)
+      #   - insert into numbers (select generate_series(1,10000))
+      # postInitTemplateSQL:
+      #   - create extension intarray
+      # postInitApplicationSQL:
+      #   - create table application_numbers (i integer)
+      #   - insert into application_numbers (select generate_series(1,10000))
+      # postInitApplicationSQLRefs:
+      #   configMapRefs:
+      #   - name: post-init-sql-configmap
+      #     key: configmap.sql
+      #   secretRefs:
+      #   - name: post-init-sql-secret
+      #     key: secret.sql
+
+  monitoring:
+    enablePodMonitor: true
+  
+  # postgresql:
+  #   parameters:
+  #     # May want to adjust shared_buffers. shared_buffers: how much memory is dedicated to
+  #     # the PostgreSQL server for caching data. The default is 128MB.
+  #     #
+  #     # Straight out of the cnpg documentation:
+  #     #
+  #     # A reasonable starting value for shared_buffers is 25% of the memory in your system.
+  #     # For example: if your shared_buffers is 256 MB, then the recommended value for your container
+  #     # memory size is 1 GB, which means that within a pod all the containers will have a total of 1 GB
+  #     # memory that Kubernetes will always preserve, enabling our containers to work as expected. For
+  #     # more details, please refer to the "Resource Consumption" section in the PostgreSQL documentation.
+  #     shared_buffers: 256MB
+  #     pg_stat_statements.max: '10000'
+  #     pg_stat_statements.track: all
+  #     auto_explain.log_min_duration: '10s'
+  #   pg_hba:
+  #     - host all all 10.244.0.0/16 md5
+
+#   backup:
+#     barmanObjectStore:
+#       destinationPath: "https://stcnpgbackups.blob.core.windows.net/acme"  # You can add a path after the container if you like (e.g. ../adam-pg-backups/path or ../adam-pg-backups/some/path)
+#       azureCredentials:
+#         storageSasToken:
+#           name: azure-storage-account-creds-for-backups
+#           key: AZURE_STORAGE_SAS_TOKEN
+#       wal:
+#         compression: gzip
+#         #encryption: AES256
+#       data:
+#         compression: gzip
+#         #encryption: AES256
+#         #immediateCheckpoint: false
+#         #jobs: 2
+#     retentionPolicy: "30d"
+# ---
+# # Schedule full backups
+# apiVersion: postgresql.cnpg.io/v1
+# kind: ScheduledBackup
+# metadata:
+#   name: acme-pg-iot-cluster-backup
+#   namespace: acme
+# spec:
+#   # Note that kubernetes cron syntax includes a field for "seconds".
+#   # Seconds | Minutes | Hours | Day of month | Month | Day of week
+#   #
+#   # The schedule defined below would trigger a backup every Sunday at 12:30:05 PM. Notice the "Hours"
+#   # field is set to 18 and not 12 because of UTC.
+#   schedule: "5 30 18 * * 2"
+#   backupOwnerReference: self
+#   cluster:
+#     name: acme-pg-iot-cluster
