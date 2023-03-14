@@ -197,7 +197,7 @@ metadata:
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
-  name: acme-pg-iot-cluster
+  name: acme-postgresql-iot
   namespace: acme
 spec:
   #imageName: ghcr.io/cloudnative-pg/postgresql:15.0
