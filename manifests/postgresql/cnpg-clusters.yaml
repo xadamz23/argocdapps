@@ -201,7 +201,7 @@ metadata:
   namespace: acme
 spec:
   #imageName: ghcr.io/cloudnative-pg/postgresql:15.0
-  instances: 4
+  instances: 3
   
   # Enable replication slots for HA in the cluster
   replicationSlots:
